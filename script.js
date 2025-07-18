@@ -294,7 +294,8 @@ locationFileInput.addEventListener('change', async (e) => {
         await Promise.all(filePromises);
 
         if (allLocations.length > 0) {
-            const response = await fetch('/share', {
+            console.log('Sending locations:', allLocations);
+            const response = await fetch('/api/locations/share', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -324,6 +325,112 @@ locationFileInput.addEventListener('change', async (e) => {
         e.target.value = ''; // Clear the file input
     }
 });
+
+let map; // Global map object
+let markers = []; // Array to store map markers
+
+// Initialize and add the map
+window.initMap = function() {
+    // The map, centered at Taiwan
+    map = new google.maps.Map(document.getElementById("map"), {
+    zoom: 8,
+    center: { lat: 23.6978, lng: 120.9605 }, // Center of Taiwan
+    mapId: 'DEMO_MAP_ID' // Add a map ID
+});
+getLists();
+}
+
+const getLists = async () => {
+    try {
+        const response = await fetch(API_URL);
+        allLocations = await response.json();
+        await populateLocations();
+        applyFiltersAndSort(allLocations);
+    } catch (error) {
+        console.error('Error fetching locations:', error);
+    }
+};
+
+const populateLocations = async () => {
+    try {
+        const response = await fetch('taiwan-districts.json');
+        const locations = await response.json();
+        taiwanRegions = locations;
+
+        // Clear existing options before populating
+        locationSelect.innerHTML = '';
+        regionFilterSelect.innerHTML = '';
+        typeFilterSelect.innerHTML = '';
+
+        // Populate locationSelect dropdown
+        locations.forEach(location => {
+            const option = document.createElement('option');
+            option.value = location;
+            option.textContent = location;
+            locationSelect.appendChild(option);
+        });
+
+        // Populate regionFilterSelect dropdown
+        const allRegionsOption = document.createElement('option');
+        allRegionsOption.value = 'all';
+        allRegionsOption.textContent = '所有地區';
+        regionFilterSelect.appendChild(allRegionsOption);
+
+        locations.forEach(location => {
+            const option = document.createElement('option');
+            option.value = location;
+            option.textContent = location;
+            regionFilterSelect.appendChild(option);
+        });
+
+        // Populate typeFilterSelect dropdown
+        const allTypesOption = document.createElement('option');
+        allTypesOption.value = 'all';
+        allTypesOption.textContent = '所有類型';
+        typeFilterSelect.appendChild(allTypesOption);
+
+        const uniqueTypes = [...new Set(allLocations.flatMap(loc => loc.types || []))];
+        uniqueTypes.sort().forEach(type => {
+            const option = document.createElement('option');
+            option.value = type;
+            option.textContent = typeMap[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            typeFilterSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error in populateLocations:', error);
+    }
+};
+
+const addLocation = async (name) => {
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ name })
+        });
+        const newLocation = await response.json();
+        getLists();
+    } catch (error) {
+        console.error('Error adding location:', error);
+    }
+};
+
+const deleteLocation = async (id) => {
+    try {
+        const response = await fetch(`${API_URL}/${id}`, {
+            method: 'DELETE'
+        });
+        if (response.ok) {
+            getLists();
+        } else {
+            console.error('Failed to delete location:', response.statusText);
+        }
+    } catch (error) {
+        console.error('Error deleting location:', error);
+    }
+};
 
 const displayLists = (locations) => {
     listsContainer.innerHTML = '';
@@ -434,98 +541,6 @@ const displayLists = (locations) => {
 
     if (markers.length > 0) {
         map.fitBounds(bounds);
-    }
-};
-
-const getLists = async () => {
-    try {
-        const response = await fetch(API_URL);
-        allLocations = await response.json();
-        await populateLocations();
-        applyFiltersAndSort(allLocations);
-    } catch (error) {
-        console.error('Error fetching locations:', error);
-    }
-};
-
-const populateLocations = async () => {
-    try {
-        const response = await fetch('taiwan-districts.json');
-        const locations = await response.json();
-        taiwanRegions = locations;
-
-        // Clear existing options before populating
-        locationSelect.innerHTML = '';
-        regionFilterSelect.innerHTML = '';
-        typeFilterSelect.innerHTML = '';
-
-        // Populate locationSelect dropdown
-        locations.forEach(location => {
-            const option = document.createElement('option');
-            option.value = location;
-            option.textContent = location;
-            locationSelect.appendChild(option);
-        });
-
-        // Populate regionFilterSelect dropdown
-        const allRegionsOption = document.createElement('option');
-        allRegionsOption.value = 'all';
-        allRegionsOption.textContent = '所有地區';
-        regionFilterSelect.appendChild(allRegionsOption);
-
-        locations.forEach(location => {
-            const option = document.createElement('option');
-            option.value = location;
-            option.textContent = location;
-            regionFilterSelect.appendChild(option);
-        });
-
-        // Populate typeFilterSelect dropdown
-        const allTypesOption = document.createElement('option');
-        allTypesOption.value = 'all';
-        allTypesOption.textContent = '所有類型';
-        typeFilterSelect.appendChild(allTypesOption);
-
-        const uniqueTypes = [...new Set(allLocations.flatMap(loc => loc.types || []))];
-        uniqueTypes.sort().forEach(type => {
-            const option = document.createElement('option');
-            option.value = type;
-            option.textContent = typeMap[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            typeFilterSelect.appendChild(option);
-        });
-    } catch (error) {
-        console.error('Error in populateLocations:', error);
-    }
-};
-
-const addLocation = async (name) => {
-    try {
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ name })
-        });
-        const newLocation = await response.json();
-        getLists();
-    } catch (error) {
-        console.error('Error adding location:', error);
-    }
-};
-
-const deleteLocation = async (id) => {
-    try {
-        const response = await fetch(`${API_URL}/${id}`, {
-            method: 'DELETE'
-        });
-        if (response.ok) {
-            getLists();
-        } else {
-            console.error('Failed to delete location:', response.statusText);
-        }
-    } catch (error) {
-        console.error('Error deleting location:', error);
     }
 };
 
