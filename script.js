@@ -263,67 +263,47 @@ locationFileInput.addEventListener('change', async (e) => {
     loadingSpinner.style.display = 'block';
     fileUploadFeedback.textContent = '';
 
-    const allLocations = [];
+    let totalSuccessfulAdditions = 0;
     const filePromises = [];
-    const selectedLocation = locationSelect.value;
 
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        filePromises.push(new Promise((resolve, reject) => {
+        filePromises.push(new Promise((resolve) => {
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = async (event) => {
                 const fileContent = event.target.result;
-                const locationsFromFile = fileContent.split('\n')
-                    .map(line => line.trim())
-                    .filter(line => line !== '');
-                
+                const locationsFromFile = fileContent.split('\n').filter(line => line.trim() !== '');
+                const selectedLocation = locationSelect.value;
+
+                let successfulAdditionsForFile = 0;
                 for (const line of locationsFromFile) {
-                    allLocations.push({ name: `${selectedLocation} - ${line}` });
+                    try {
+                        await addLocation(`${selectedLocation} - ${line.trim()}`);
+                        successfulAdditionsForFile++;
+                    } catch (error) {
+                        console.error(`Failed to add location from file ${file.name}: ${line.trim()}`, error);
+                    }
                 }
+                totalSuccessfulAdditions += successfulAdditionsForFile;
                 resolve();
-            };
-            reader.onerror = (error) => {
-                console.error(`Error reading file ${file.name}:`, error);
-                reject(error);
             };
             reader.readAsText(file);
         }));
     }
 
-    try {
-        await Promise.all(filePromises);
+    await Promise.all(filePromises);
 
-        if (allLocations.length > 0) {
-            console.log('Sending locations:', allLocations);
-            const response = await fetch('/api/locations/share', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ locations: allLocations })
-            });
+    loadingSpinner.style.display = 'none';
+    setFormEnabled(true);
 
-            if (response.ok) {
-                fileUploadFeedback.textContent = `${allLocations.length} 個地點已成功分享！`;
-                fileUploadFeedback.style.color = 'green';
-                getLists(); // Refresh the lists after successful sharing
-            } else {
-                const errorText = await response.text();
-                throw new Error(`Failed to share locations: ${errorText}`);
-            }
-        } else {
-            fileUploadFeedback.textContent = '沒有地點可分享。';
-            fileUploadFeedback.style.color = 'orange';
-        }
-    } catch (error) {
-        console.error('Error processing files:', error);
-        fileUploadFeedback.textContent = '處理檔案時發生錯誤。';
-        fileUploadFeedback.style.color = 'red';
-    } finally {
-        loadingSpinner.style.display = 'none';
-        setFormEnabled(true);
-        e.target.value = ''; // Clear the file input
+    if (totalSuccessfulAdditions > 0) {
+        fileUploadFeedback.textContent = `${totalSuccessfulAdditions} 個地點已成功新增！`;
+        fileUploadFeedback.style.color = 'green';
+    } else {
+        fileUploadFeedback.textContent = '沒有地點被新增。';
+        fileUploadFeedback.style.color = 'orange';
     }
+    e.target.value = '';
 });
 
 let map; // Global map object
