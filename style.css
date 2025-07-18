@@ -55,6 +55,12 @@ nav {
     color: #85c1e9;
 }
 
+.social-links a {
+    color: #ffffff;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
 .btn {
     background-color: #3498db;
     color: #fff;
