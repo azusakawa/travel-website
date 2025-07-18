@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>旅遊網站</title>
+    <script>
+        let map; // Global map object
+        let markers = []; // Array to store map markers
+
+        // Initialize and add the map
+        function initMap() {
+            // The map, centered at Taiwan
+            map = new google.maps.Map(document.getElementById("map"), {
+            zoom: 8,
+            center: { lat: 23.6978, lng: 120.9605 }, // Center of Taiwan
+            mapId: 'DEMO_MAP_ID' // Add a map ID
+        });
+        getLists();
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>旅遊網站</h1>
+        <nav>
+            <div class="social-links">
+                <p><i class="fa-brands fa-instagram"></i> @lincheng226</p>
+                <p><i class="fa-brands fa-threads"></i> @lincheng226</p>
+                <p><i class="fa-regular fa-envelope"></i> snku.story1999@gmail.com</p>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="share-list">
+            <h2>分享您的 Google 地圖清單</h2>
+            <form id="share-form">
+                <select id="location-select"></select>
+                <input type="text" id="location-name" placeholder="輸入地點名稱 (例如：艾菲爾鐵塔)" required>
+                <div class="file-input-group">
+                    <label for="location-file-input">或上傳地點清單 (每行一個地點):</label>
+                    <input type="file" id="location-file-input" accept=".txt" multiple>
+                </div>
+                <button type="submit" class="btn">分享</button>
+            </form>
+            <div id="file-upload-feedback" style="margin-top: 1rem;"></div>
+            <div id="loading-spinner" style="display: none; margin-top: 1rem;">
+                <img src="https://cdnjs.cloudflare.com/ajax/libs/galleriffic/2.0.1/css/loader.gif" alt="載入中..." style="width: 20px; height: 20px;">
+                正在處理檔案...
+            </div>
+        </section>
+
+        <section id="map" style="height: 400px; width: 100%; margin-bottom: 2rem;"></section>
+
+        <section class="shared-lists">
+            <div class="filter-controls">
+                <label for="region-filter">依地區篩選:</label>
+                <select id="region-filter"></select>
+                <label for="type-filter">依類型篩選:</label>
+                <select id="type-filter">
+                    <option value="all">所有類型</option>
+                </select>
+                <label for="search-keyword">關鍵字搜尋:</label>
+                <input type="text" id="search-keyword" placeholder="搜尋地點名稱或地址">
+                <label for="sort-by-rating">依評分排序:</label>
+                <select id="sort-by-rating">
+                    <option value="none">無</option>
+                    <option value="high-to-low">高到低</option>
+                    <option value="low-to-high">低到高</option>
+                </select>
+                <label for="sort-by-name">依名稱排序:</label>
+                <select id="sort-by-name">
+                    <option value="none">無</option>
+                    <option value="a-z">A-Z</option>
+                    <option value="z-a">Z-A</option>
+                </select>
+                <label for="min-rating-filter">最低評分:</label>
+                <select id="min-rating-filter">
+                    <option value="0">所有評分</option>
+                    <option value="1">1 星及以上</option>
+                    <option value="2">2 星及以上</option>
+                    <option value="3">3 星及以上</option>
+                    <option value="4">4 星及以上</option>
+                    <option value="5">5 星</option>
+                </select>
+                <label for="items-per-page">每頁顯示:</label>
+                <select id="items-per-page">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <button id="prev-page" class="btn">上一頁</button>
+                <span id="page-info">第 1 頁，共 1 頁</span>
+                <button id="next-page" class="btn">下一頁</button>
+            </div>
+            <h2>已分享清單</h2>
+            <ul id="lists-container">
+                <!-- Shared lists will be displayed here -->
+            </ul>
+        </section>
+    </main>
+
+    <footer>
+        <p>版權所有 © 2025 旅遊網站. All Rights Reserved.</p>
+    </footer>
+
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCKXu6-XRFEmJM2l1zbWbO_i9-WsUaQimE&callback=initMap&libraries=marker"></script>
+    <script src="script.js"></script>
+</body>
+</html>
