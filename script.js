@@ -329,7 +329,7 @@ let map; // Global map object
 let markers = []; // Array to store map markers
 
 // Initialize and add the map
-function initMap() {
+window.initMap = function() {
     // The map, centered at Taiwan
     map = new google.maps.Map(document.getElementById("map"), {
     zoom: 8,
