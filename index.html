@@ -111,6 +111,21 @@
         <p>版權所有 © 2025 旅遊網站. All Rights Reserved.</p>
     </footer>
 
+    <script>
+        // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, and right-click context menu
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F12' || 
+                (e.ctrlKey && e.shiftKey && e.key === 'I') || 
+                (e.ctrlKey && e.shiftKey && e.key === 'J') ||
+                (e.ctrlKey && e.key === 'U')) { // Disable Ctrl+U for view source
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+    </script>
     <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCKXu6-XRFEmJM2l1zbWbO_i9-WsUaQimE&callback=initMap&libraries=marker"></script>
     <script src="script.js"></script>
 </body>
