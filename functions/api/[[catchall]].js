@@ -154,6 +154,21 @@ const apiRouter = {
       return new Response(JSON.stringify({ message: "Location deleted successfully" }), { status: 200, headers: { "Content-Type": "application/json" } });
     },
   },
+  "/api/google-maps-key": {
+    GET: async ({ env }) => {
+      const apiKey = env.GOOGLE_MAPS_API_KEY;
+      if (apiKey) {
+        return new Response(JSON.stringify({ apiKey }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      } else {
+        return new Response(JSON.stringify({ error: "Google Maps API Key not found" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    },
+  },
 };
 
 export async function onRequest(context) {

@@ -329,16 +329,38 @@ locationFileInput.addEventListener('change', async (e) => {
 let map; // Global map object
 let markers = []; // Array to store map markers
 
-// Initialize and add the map
-window.initMap = function() {
+// Function to initialize and add the map
+function initMap() {
     // The map, centered at Taiwan
     map = new google.maps.Map(document.getElementById("map"), {
-    zoom: 8,
-    center: { lat: 23.6978, lng: 120.9605 }, // Center of Taiwan
-    mapId: 'DEMO_MAP_ID' // Add a map ID
-});
-getLists();
+        zoom: 8,
+        center: { lat: 23.6978, lng: 120.9605 }, // Center of Taiwan
+        mapId: 'DEMO_MAP_ID' // Add a map ID
+    });
+    getLists();
 }
+
+// Function to dynamically load Google Maps script
+async function loadGoogleMapsScript() {
+    try {
+        const response = await fetch('/api/google-maps-key');
+        const data = await response.json();
+        if (data.apiKey) {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${data.apiKey}&callback=initMap&libraries=marker&loading=async`;
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
+        } else {
+            console.error('Failed to get Google Maps API key from backend.');
+        }
+    } catch (error) {
+        console.error('Error fetching Google Maps API key:', error);
+    }
+}
+
+// Call the function to load Google Maps script when the page loads
+document.addEventListener('DOMContentLoaded', loadGoogleMapsScript);
 
 const getLists = async () => {
     try {
