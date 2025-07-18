@@ -294,7 +294,7 @@ locationFileInput.addEventListener('change', async (e) => {
         await Promise.all(filePromises);
 
         if (allLocations.length > 0) {
-            const response = await fetch('/share', {
+            const response = await fetch('/api/locations/share', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
