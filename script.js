@@ -325,6 +325,20 @@ locationFileInput.addEventListener('change', async (e) => {
     }
 });
 
+let map; // Global map object
+let markers = []; // Array to store map markers
+
+// Initialize and add the map
+function initMap() {
+    // The map, centered at Taiwan
+    map = new google.maps.Map(document.getElementById("map"), {
+    zoom: 8,
+    center: { lat: 23.6978, lng: 120.9605 }, // Center of Taiwan
+    mapId: 'DEMO_MAP_ID' // Add a map ID
+});
+getLists();
+}
+
 const getLists = async () => {
     try {
         const response = await fetch(API_URL);
