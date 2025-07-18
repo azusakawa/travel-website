@@ -27,6 +27,54 @@ async function getLocations(context) {
   return locations;
 }
 
+// Helper function to process and add a single location
+async function processAndAddLocation(name, env, locationsCache) {
+  const GOOGLE_MAPS_API_KEY = env.GOOGLE_MAPS_API_KEY;
+
+  if (!name) {
+    throw new Error("Location name is required");
+  }
+  if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === 'YOUR_GOOGLE_MAPS_API_KEY_HERE') {
+    throw new Error("Google Maps API Key is not set");
+  }
+
+  const placesApiUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(name)}&inputtype=textquery&fields=place_id,name,formatted_address&key=${GOOGLE_MAPS_API_KEY}`;
+  const placesResponse = await fetch(placesApiUrl);
+  const placesData = await placesResponse.json();
+
+  if (placesData.status === 'OK' && placesData.candidates.length > 0) {
+    const { place_id, name: placeName, formatted_address } = placesData.candidates[0];
+
+    const isDuplicate = locationsCache.some(loc => (loc.placeId && loc.placeId === place_id) || (!loc.placeId && loc.address === formatted_address));
+    if (isDuplicate) {
+      throw new Error("Location already exists");
+    }
+
+    const detailsApiUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place_id}&fields=rating,user_ratings_total,types,geometry&key=${GOOGLE_MAPS_API_KEY}`;
+    const detailsResponse = await fetch(detailsApiUrl);
+    const detailsData = await detailsResponse.json();
+
+    let rating = null, userRatingsTotal = null, types = [], latitude = null, longitude = null;
+    if (detailsData.status === 'OK' && detailsData.result) {
+      const { result } = detailsData;
+      rating = result.rating || null;
+      userRatingsTotal = result.user_ratings_total || null;
+      types = result.types || [];
+      if (result.geometry && result.geometry.location) {
+        latitude = result.geometry.location.lat;
+        longitude = result.geometry.location.lng;
+      }
+    }
+
+    const googleMapsLink = `https://www.google.com/maps/place/?q=place_id:${place_id}`;
+    const newLocation = { id: crypto.randomUUID(), placeId: place_id, name: placeName, address: formatted_address, link: googleMapsLink, rating, userRatingsTotal, types, latitude, longitude };
+
+    return newLocation;
+  } else {
+    throw new Error("Location not found on Google Maps");
+  }
+}
+
 const apiRouter = {
   "/api/locations": {
     GET: async ({ env }) => {
@@ -37,58 +85,47 @@ const apiRouter = {
     },
     POST: async ({ request, env }) => {
       const { name } = await request.json();
-      const GOOGLE_MAPS_API_KEY = env.GOOGLE_MAPS_API_KEY;
       let locationsCache = await getLocations({ env });
 
-      if (!name) {
-        return new Response(JSON.stringify({ error: "Location name is required" }), { status: 400, headers: { "Content-Type": "application/json" } });
-      }
-      if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === 'YOUR_GOOGLE_MAPS_API_KEY_HERE') {
-        return new Response(JSON.stringify({ error: "Google Maps API Key is not set" }), { status: 500, headers: { "Content-Type": "application/json" } });
-      }
-
       try {
-        const placesApiUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(name)}&inputtype=textquery&fields=place_id,name,formatted_address&key=${GOOGLE_MAPS_API_KEY}`;
-        const placesResponse = await fetch(placesApiUrl);
-        const placesData = await placesResponse.json();
-
-        if (placesData.status === 'OK' && placesData.candidates.length > 0) {
-          const { place_id, name: placeName, formatted_address } = placesData.candidates[0];
-
-          const isDuplicate = locationsCache.some(loc => (loc.placeId && loc.placeId === place_id) || (!loc.placeId && loc.address === formatted_address));
-          if (isDuplicate) {
-            return new Response(JSON.stringify({ error: "Location already exists" }), { status: 409, headers: { "Content-Type": "application/json" } });
-          }
-
-          const detailsApiUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place_id}&fields=rating,user_ratings_total,types,geometry&key=${GOOGLE_MAPS_API_KEY}`;
-          const detailsResponse = await fetch(detailsApiUrl);
-          const detailsData = await detailsResponse.json();
-
-          let rating = null, userRatingsTotal = null, types = [], latitude = null, longitude = null;
-          if (detailsData.status === 'OK' && detailsData.result) {
-            const { result } = detailsData;
-            rating = result.rating || null;
-            userRatingsTotal = result.user_ratings_total || null;
-            types = result.types || [];
-            if (result.geometry && result.geometry.location) {
-              latitude = result.geometry.location.lat;
-              longitude = result.geometry.location.lng;
-            }
-          }
-
-          const googleMapsLink = `https://www.google.com/maps/place/?q=place_id:${place_id}`;
-          const newLocation = { id: crypto.randomUUID(), placeId: place_id, name: placeName, address: formatted_address, link: googleMapsLink, rating, userRatingsTotal, types, latitude, longitude };
-
-          locationsCache.push(newLocation);
-          await env.LOCATIONS_KV.put("all_locations", JSON.stringify(locationsCache));
-
-          return new Response(JSON.stringify(newLocation), { status: 201, headers: { "Content-Type": "application/json" } });
-        } else {
-          return new Response(JSON.stringify({ error: "Location not found on Google Maps" }), { status: 404, headers: { "Content-Type": "application/json" } });
-        }
+        const newLocation = await processAndAddLocation(name, env, locationsCache);
+        locationsCache.push(newLocation);
+        await env.LOCATIONS_KV.put("all_locations", JSON.stringify(locationsCache));
+        return new Response(JSON.stringify(newLocation), { status: 201, headers: { "Content-Type": "application/json" } });
       } catch (error) {
-        console.error('Error searching Google Maps:', error.message);
-        return new Response(JSON.stringify({ error: "Failed to search Google Maps" }), { status: 500, headers: { "Content-Type": "application/json" } });
+        console.error('Error adding location:', error.message);
+        let status = 500;
+        if (error.message === "Location name is required") status = 400;
+        else if (error.message === "Location already exists") status = 409;
+        else if (error.message === "Location not found on Google Maps") status = 404;
+        return new Response(JSON.stringify({ error: error.message }), { status: status, headers: { "Content-Type": "application/json" } });
+      }
+    },
+  },
+  "/share": {
+    POST: async ({ request, env }) => {
+      const { locations } = await request.json();
+      let locationsCache = await getLocations({ env });
+      const addedLocations = [];
+      const errors = [];
+
+      for (const loc of locations) {
+        try {
+          const newLocation = await processAndAddLocation(loc.name, env, locationsCache);
+          locationsCache.push(newLocation);
+          addedLocations.push(newLocation);
+        } catch (error) {
+          console.error(`Error processing location ${loc.name}:`, error.message);
+          errors.push({ name: loc.name, error: error.message });
+        }
+      }
+
+      await env.LOCATIONS_KV.put("all_locations", JSON.stringify(locationsCache));
+
+      if (errors.length > 0) {
+        return new Response(JSON.stringify({ message: "Some locations failed to process", added: addedLocations.length, failed: errors.length, errors: errors }), { status: 207, headers: { "Content-Type": "application/json" } }); // 207 Multi-Status
+      } else {
+        return new Response(JSON.stringify({ message: "All locations processed successfully", added: addedLocations.length }), { status: 200, headers: { "Content-Type": "application/json" } });
       }
     },
   },
@@ -128,7 +165,7 @@ export async function onRequest(context) {
   let handler;
   let routeFound = false;
   for (const route in apiRouter) {
-    const routeMatcher = new RegExp(`^${route.replace(/:\w+/g, '([^/]+)')}$`);
+    const routeMatcher = new RegExp(`^${route.replace(/:\w+/g, '([^/]+)')}`);
     if (routeMatcher.test(path)) {
       handler = apiRouter[route][method];
       routeFound = true;
